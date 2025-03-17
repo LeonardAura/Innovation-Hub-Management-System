@@ -1,0 +1,262 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STARTUP
+  MENTOR
+  INVESTOR
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      UserRole
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  profile          Profile?
+  startup          Startup?
+  mentorProfile    MentorProfile?
+  investorProfile  InvestorProfile?
+  sentMessages     Message[]        @relation("SentMessages")
+  receivedMessages Message[]        @relation("ReceivedMessages")
+  forumPosts       ForumPost[]
+  forumComments    ForumComment[]
+  applicationReviews ApplicationReview[]
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  name      String
+  bio       String?  @db.Text
+  avatar    String?
+  phone     String?
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Startup {
+  id           String   @id @default(cuid())
+  name         String
+  description  String   @db.Text
+  logo         String?
+  website      String?
+  industry     String?
+  foundedYear  Int?
+  stage        String?
+  teamSize     Int?
+  fundingRaised Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  userId      String       @unique
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestones  Milestone[]
+  applications Application[]
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  targetDate  DateTime?
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  startupId   String
+  startup     Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+}
+
+model MentorProfile {
+  id                String   @id @default(cuid())
+  bio               String   @db.Text
+  yearsOfExperience Int?
+  company           String?
+  position          String?
+  linkedIn          String?
+  availability      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expertise Expertise[]
+}
+
+model Expertise {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  mentors   MentorProfile[]
+}
+
+model InvestorProfile {
+  id                 String   @id @default(cuid())
+  bio                String   @db.Text
+  firmName           String?
+  investmentStages   String[] // e.g., ["SEED", "SERIES_A"]
+  investmentSizeLower Float?
+  investmentSizeUpper Float?
+  portfolioSize      Int?
+  linkedIn           String?
+  website            String?
+  industries         String[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Program {
+  id              String   @id @default(cuid())
+  name            String
+  description     String   @db.Text
+  startDate       DateTime?
+  endDate         DateTime?
+  maxParticipants Int?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  applicationQuestions ApplicationQuestion[]
+  applications         Application[]
+}
+
+model ApplicationQuestion {
+  id        String   @id @default(cuid())
+  question  String
+  required  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  programId  String
+  program    Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  answers    ApplicationAnswer[]
+}
+
+model Application {
+  id          String   @id @default(cuid())
+  status      String   // PENDING, APPROVED, REJECTED
+  feedbackNote String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  startupId   String
+  startup     Startup  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  answers     ApplicationAnswer[]
+  reviews     ApplicationReview[]
+}
+
+model ApplicationAnswer {
+  id        String   @id @default(cuid())
+  answer    String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  questionId    String
+  question      ApplicationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model ApplicationReview {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewerId    String
+  reviewer      User        @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+}
+
+model ForumPost {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  tags      String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  ForumComment[]
+  likes     ForumLike[]
+}
+
+model ForumComment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  postId    String
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model ForumLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Relations
+  postId    String
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  
+  @@unique([postId, userId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  senderId     String
+  sender       User   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId  String
+  recipient    User   @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+}
+
